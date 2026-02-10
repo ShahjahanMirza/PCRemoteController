@@ -260,7 +260,7 @@
             </div>
         </div>
         <div class="btn-group">
-            <a href="https://github.com/ShahjahanMirza/PCRemoteController/releases/download/v1.0.0/PC-Remote.exe" id="download-link" class="setup-btn" style="text-decoration:none;justify-content:center;" download>
+            <a href="https://github.com/ShahjahanMirza/PCRemoteController/releases/download/v1.1.0/PC-Remote.exe" id="download-link" class="setup-btn" style="text-decoration:none;justify-content:center;" download>
                 <i data-lucide="download" style="width:18px;height:18px"></i>
                 Download PC-Remote.exe
             </a>
@@ -395,13 +395,15 @@
                         console.log('QR scanned:', text);
                         if (text.startsWith('http') || text.match(/^\d+\.\d+\.\d+\.\d+/)) {
                             let url = text;
-                            if (!url.startsWith('http')) url = 'http://' + url;
+                            if (!url.startsWith('http')) url = 'https://' + url;
+                            // Ensure we use HTTPS
+                            url = url.replace(/^http:\/\//, 'https://');
                             url = url.replace(/\/$/, '');
 
-                            // Stop scanner then redirect
+                            // Stop scanner then connect
                             try { html5QrCode.stop().catch(() => {}); } catch(e) {}
                             html5QrCode = null;
-                            window.location.href = url;
+                            attemptConnection(url);
                         }
                     },
                     () => {}
@@ -426,10 +428,11 @@
         function connectManual() {
             let url = document.getElementById('manual-ip').value.trim();
             if (!url) return;
-            if (!url.startsWith('http')) url = 'http://' + url;
+            if (!url.startsWith('http')) url = 'https://' + url;
+            // Ensure HTTPS
+            url = url.replace(/^http:\/\//, 'https://');
             url = url.replace(/\/$/, '');
-            // Redirect to the Flask server directly
-            window.location.href = url;
+            attemptConnection(url);
         }
 
         // ===== CONNECTION =====
@@ -438,13 +441,49 @@
             document.getElementById('connecting-url').textContent = url;
             goTo('screen-connecting');
 
-            // With no-cors, we can't read the response, so just fire and connect
-            // The fetch will succeed silently even if blocked — we connect anyway
-            // and the user will see if buttons work or not
-            fetch(url + '/mute', { mode: 'no-cors' }).catch(() => {});
+            // First, open the HTTPS URL in a new tab so user can accept the self-signed cert
+            // Then verify connection with a ping
+            const certWindow = window.open(url + '/ping', '_blank');
 
-            // Short delay to feel intentional, then connect
-            setTimeout(() => onConnected(), 800);
+            document.getElementById('connecting-url').innerHTML = url +
+                '<br><br><span style="font-size:12px;color:#f59e0b;">A new tab opened — accept the certificate warning there,<br>then come back here and tap "Connect".</span>';
+
+            // Add a connect button
+            const connectBtn = document.createElement('button');
+            connectBtn.textContent = 'Connect';
+            connectBtn.className = 'setup-btn';
+            connectBtn.style.marginTop = '16px';
+            connectBtn.onclick = () => {
+                connectBtn.remove();
+                // Try to ping the server
+                fetch(url + '/ping')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.status === 'ok') onConnected();
+                        else onConnectionFailed();
+                    })
+                    .catch(() => {
+                        // Might still work — self-signed cert might not have been accepted
+                        onConnectionFailed();
+                    });
+            };
+            document.getElementById('screen-connecting').appendChild(connectBtn);
+        }
+
+        function onConnectionFailed() {
+            document.getElementById('connecting-url').innerHTML =
+                '<span style="color:#ef4444;">Could not connect. Make sure you accepted the certificate in the other tab.</span>' +
+                '<br><span style="font-size:12px;color:var(--text-dim);">Tap the button below to try again.</span>';
+
+            const retryBtn = document.createElement('button');
+            retryBtn.textContent = 'Try Again';
+            retryBtn.className = 'setup-btn';
+            retryBtn.style.marginTop = '12px';
+            retryBtn.onclick = () => {
+                retryBtn.remove();
+                attemptConnection(serverUrl);
+            };
+            document.getElementById('screen-connecting').appendChild(retryBtn);
         }
 
         function onConnected() {
