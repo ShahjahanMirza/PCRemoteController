@@ -302,7 +302,7 @@
     <!-- SCREEN 4: Connecting -->
     <div id="screen-connecting" class="screen setup-screen">
         <div class="connecting-spinner"></div>
-        <h1 style="font-size:20px;margin-top:12px;">Connecting...</h1>
+        <h1 style="font-size:20px;margin-top:12px;">Redirecting to your PC...</h1>
         <p id="connecting-url" style="font-size:13px;"></p>
     </div>
 
@@ -403,10 +403,14 @@
         }
 
         function onScanSuccess(decodedText) {
-            // The QR contains the server URL like http://192.168.1.x:5000
-            if (decodedText.startsWith('http')) {
+            const text = decodedText.trim();
+            if (text.startsWith('http') || text.match(/^\d+\.\d+\.\d+\.\d+/)) {
                 stopScanner();
-                attemptConnection(decodedText.replace(/\/$/, ''));
+                let url = text;
+                if (!url.startsWith('http')) url = 'http://' + url;
+                url = url.replace(/\/$/, '');
+                // Redirect to the Flask server — it serves the remote panel directly
+                window.location.href = url;
             }
         }
 
@@ -415,7 +419,8 @@
             if (!url) return;
             if (!url.startsWith('http')) url = 'http://' + url;
             url = url.replace(/\/$/, '');
-            attemptConnection(url);
+            // Redirect to the Flask server directly
+            window.location.href = url;
         }
 
         // ===== CONNECTION =====
@@ -424,20 +429,13 @@
             document.getElementById('connecting-url').textContent = url;
             goTo('screen-connecting');
 
-            // Test the connection by hitting the play endpoint
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 5000);
+            // With no-cors, we can't read the response, so just fire and connect
+            // The fetch will succeed silently even if blocked — we connect anyway
+            // and the user will see if buttons work or not
+            fetch(url + '/mute', { mode: 'no-cors' }).catch(() => {});
 
-            fetch(url + '/play', { mode: 'no-cors', signal: controller.signal })
-                .then(() => {
-                    clearTimeout(timeout);
-                    onConnected();
-                })
-                .catch(() => {
-                    clearTimeout(timeout);
-                    // no-cors requests may "fail" but still work — try connecting anyway
-                    onConnected();
-                });
+            // Short delay to feel intentional, then connect
+            setTimeout(() => onConnected(), 800);
         }
 
         function onConnected() {
