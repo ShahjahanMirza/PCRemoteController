@@ -375,42 +375,51 @@
 
         // ===== QR SCANNER =====
         function startScanner() {
-            if (html5QrCode) return;
+            // Clean up previous instance
+            if (html5QrCode) {
+                try { html5QrCode.stop().catch(() => {}); } catch(e) {}
+                try { html5QrCode.clear(); } catch(e) {}
+                html5QrCode = null;
+            }
+
             const statusText = document.getElementById('scan-status-text');
             statusText.textContent = 'Starting camera...';
 
-            html5QrCode = new Html5Qrcode("qr-reader");
-            html5QrCode.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                onScanSuccess,
-                () => {} // ignore scan failures
-            ).then(() => {
-                statusText.textContent = 'Point at the QR code on your PC';
-            }).catch(err => {
-                statusText.textContent = 'Camera access denied. Use manual entry below.';
-                console.error('Camera error:', err);
-                html5QrCode = null;
-            });
+            setTimeout(() => {
+                html5QrCode = new Html5Qrcode("qr-reader");
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    (decodedText) => {
+                        const text = decodedText.trim();
+                        console.log('QR scanned:', text);
+                        if (text.startsWith('http') || text.match(/^\d+\.\d+\.\d+\.\d+/)) {
+                            let url = text;
+                            if (!url.startsWith('http')) url = 'http://' + url;
+                            url = url.replace(/\/$/, '');
+
+                            // Stop scanner then redirect
+                            try { html5QrCode.stop().catch(() => {}); } catch(e) {}
+                            html5QrCode = null;
+                            window.location.href = url;
+                        }
+                    },
+                    () => {}
+                ).then(() => {
+                    statusText.textContent = 'Point at the QR code on your PC';
+                }).catch(err => {
+                    statusText.textContent = 'Camera access denied. Use manual entry below.';
+                    console.error('Camera error:', err);
+                    html5QrCode = null;
+                });
+            }, 300);
         }
 
         function stopScanner() {
             if (html5QrCode) {
-                html5QrCode.stop().catch(() => {});
-                html5QrCode.clear();
+                try { html5QrCode.stop().catch(() => {}); } catch(e) {}
+                try { html5QrCode.clear(); } catch(e) {}
                 html5QrCode = null;
-            }
-        }
-
-        function onScanSuccess(decodedText) {
-            const text = decodedText.trim();
-            if (text.startsWith('http') || text.match(/^\d+\.\d+\.\d+\.\d+/)) {
-                stopScanner();
-                let url = text;
-                if (!url.startsWith('http')) url = 'http://' + url;
-                url = url.replace(/\/$/, '');
-                // Redirect to the Flask server — it serves the remote panel directly
-                window.location.href = url;
             }
         }
 
