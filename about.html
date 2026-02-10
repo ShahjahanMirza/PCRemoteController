@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About — PC Remote</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #0a0a0a; color: #e2e8f0; line-height: 1.7; }
+        .container { max-width: 640px; margin: 0 auto; padding: 48px 24px; }
+        h1 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+        .subtitle { font-size: 13px; color: #64748b; margin-bottom: 36px; }
+        h2 { font-size: 18px; font-weight: 600; color: #fff; margin: 28px 0 10px; }
+        p { font-size: 15px; color: #94a3b8; margin-bottom: 14px; }
+        ul { padding-left: 20px; margin-bottom: 14px; }
+        li { font-size: 15px; color: #94a3b8; margin-bottom: 6px; }
+        a { color: #3b82f6; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .back { display: inline-block; margin-bottom: 24px; font-size: 14px; color: #64748b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back">← Back to PC Remote</a>
+        <h1>About PC Remote</h1>
+        <p class="subtitle">A simple tool for a simple problem.</p>
+
+        <h2>Why This Exists</h2>
+        <p>Ever been watching something on your PC from across the room and wished you could pause it from your phone? Or needed to scroll through a presentation without walking back to your desk? That's why PC Remote exists.</p>
+
+        <h2>What It Does</h2>
+        <p>PC Remote turns your phone into a wireless controller for your PC. It runs over your local WiFi — no internet needed, no apps to install on your phone, no accounts to create.</p>
+        <ul>
+            <li>Media controls — play, pause, skip, volume, mute, fullscreen</li>
+            <li>Virtual trackpad — move your mouse by swiping</li>
+            <li>Click, right-click, scroll, double-click</li>
+            <li>On-screen keyboard — type from your phone</li>
+            <li>Mouse 4 & 5 buttons for browser navigation</li>
+        </ul>
+
+        <h2>How It's Built</h2>
+        <p>The desktop app is written in Python using Flask as a lightweight local server and pyautogui for input simulation. The phone interface is a responsive web page — no frameworks, just HTML, CSS, and vanilla JavaScript.</p>
+        <p>The entire project is open source. You can read every line of code, build it yourself, or modify it however you like.</p>
+
+        <h2>Who Made This</h2>
+        <p>Built by <a href="https://github.com/ShahjahanMirza" target="_blank">Shahjahan Mirza</a>. Check out the project on <a href="https://github.com/ShahjahanMirza/PCRemoteController" target="_blank">GitHub</a>.</p>
+    </div>
+</body>
+</html>

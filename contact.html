@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact — PC Remote</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #0a0a0a; color: #e2e8f0; line-height: 1.7; }
+        .container { max-width: 640px; margin: 0 auto; padding: 48px 24px; }
+        h1 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+        .subtitle { font-size: 13px; color: #64748b; margin-bottom: 36px; }
+        h2 { font-size: 18px; font-weight: 600; color: #fff; margin: 28px 0 10px; }
+        p { font-size: 15px; color: #94a3b8; margin-bottom: 14px; }
+        a { color: #3b82f6; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .back { display: inline-block; margin-bottom: 24px; font-size: 14px; color: #64748b; }
+        .link-card {
+            display: flex; align-items: center; gap: 14px;
+            background: #141414; border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px; padding: 16px 20px; margin-bottom: 12px;
+            text-decoration: none; transition: border-color 0.2s;
+        }
+        .link-card:hover { border-color: #3b82f6; text-decoration: none; }
+        .link-card .icon { font-size: 22px; }
+        .link-card .label { font-size: 15px; color: #fff; font-weight: 500; }
+        .link-card .desc { font-size: 13px; color: #64748b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back">← Back to PC Remote</a>
+        <h1>Contact</h1>
+        <p class="subtitle">Got a question, bug report, or feature request? Here's how to reach out.</p>
+
+        <a href="https://github.com/ShahjahanMirza/PCRemoteController/issues" target="_blank" class="link-card">
+            <span class="icon">🐛</span>
+            <div>
+                <div class="label">Report a Bug or Request a Feature</div>
+                <div class="desc">Open an issue on GitHub</div>
+            </div>
+        </a>
+
+        <a href="https://github.com/ShahjahanMirza" target="_blank" class="link-card">
+            <span class="icon">👤</span>
+            <div>
+                <div class="label">GitHub Profile</div>
+                <div class="desc">@ShahjahanMirza</div>
+            </div>
+        </a>
+
+        <h2>General Questions</h2>
+        <p>For general questions about how the tool works, check the <a href="https://github.com/ShahjahanMirza/PCRemoteController#readme" target="_blank">README</a> first — it covers setup, security, and common questions. If that doesn't help, open a GitHub issue and I'll get back to you.</p>
+    </div>
+</body>
+</html>
