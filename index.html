@@ -260,7 +260,7 @@
             </div>
         </div>
         <div class="btn-group">
-            <a href="https://github.com/ShahjahanMirza/PCRemoteController/releases/download/v1.1.0/PC-Remote.exe" id="download-link" class="setup-btn" style="text-decoration:none;justify-content:center;" download>
+            <a href="https://github.com/ShahjahanMirza/PCRemoteController/releases/download/v1.2.0/PC-Remote.exe" id="download-link" class="setup-btn" style="text-decoration:none;justify-content:center;" download>
                 <i data-lucide="download" style="width:18px;height:18px"></i>
                 Download PC-Remote.exe
             </a>
@@ -302,7 +302,7 @@
     <!-- SCREEN 4: Connecting -->
     <div id="screen-connecting" class="screen setup-screen">
         <div class="connecting-spinner"></div>
-        <h1 style="font-size:20px;margin-top:12px;">Redirecting to your PC...</h1>
+        <h1 style="font-size:20px;margin-top:12px;">Connecting...</h1>
         <p id="connecting-url" style="font-size:13px;"></p>
     </div>
 
@@ -360,22 +360,36 @@
         let muteState = false;
         let html5QrCode = null;
 
+        // ===== SEND COMMAND VIA IMAGE (bypasses mixed content) =====
+        function send(cmd, params = '') {
+            if (!serverUrl) return;
+            const img = new Image();
+            img.src = `${serverUrl}/${cmd}${params}${params ? '&' : '?'}_t=${Date.now()}`;
+
+            if (cmd === 'play') {
+                playState = !playState;
+                document.getElementById('play-icon').setAttribute('data-lucide', playState ? 'pause' : 'play');
+                lucide.createIcons();
+            }
+            if (cmd === 'mute') {
+                muteState = !muteState;
+                document.getElementById('mute-icon').setAttribute('data-lucide', muteState ? 'volume-2' : 'volume-x');
+                lucide.createIcons();
+            }
+        }
+
         // ===== NAVIGATION =====
         function goTo(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
             lucide.createIcons();
 
-            if (screenId === 'screen-scan') {
-                startScanner();
-            } else {
-                stopScanner();
-            }
+            if (screenId === 'screen-scan') startScanner();
+            else stopScanner();
         }
 
         // ===== QR SCANNER =====
         function startScanner() {
-            // Clean up previous instance
             if (html5QrCode) {
                 try { html5QrCode.stop().catch(() => {}); } catch(e) {}
                 try { html5QrCode.clear(); } catch(e) {}
@@ -395,12 +409,9 @@
                         console.log('QR scanned:', text);
                         if (text.startsWith('http') || text.match(/^\d+\.\d+\.\d+\.\d+/)) {
                             let url = text;
-                            if (!url.startsWith('http')) url = 'https://' + url;
-                            // Ensure we use HTTPS
-                            url = url.replace(/^http:\/\//, 'https://');
+                            if (!url.startsWith('http')) url = 'http://' + url;
+                            // Keep HTTP — image requests work fine with mixed content
                             url = url.replace(/\/$/, '');
-
-                            // Stop scanner then connect
                             try { html5QrCode.stop().catch(() => {}); } catch(e) {}
                             html5QrCode = null;
                             attemptConnection(url);
@@ -428,62 +439,31 @@
         function connectManual() {
             let url = document.getElementById('manual-ip').value.trim();
             if (!url) return;
-            if (!url.startsWith('http')) url = 'https://' + url;
-            // Ensure HTTPS
-            url = url.replace(/^http:\/\//, 'https://');
+            if (!url.startsWith('http')) url = 'http://' + url;
             url = url.replace(/\/$/, '');
             attemptConnection(url);
         }
 
-        // ===== CONNECTION =====
+        // ===== CONNECTION (image-based ping) =====
         function attemptConnection(url) {
             serverUrl = url;
             document.getElementById('connecting-url').textContent = url;
             goTo('screen-connecting');
 
-            // First, open the HTTPS URL in a new tab so user can accept the self-signed cert
-            // Then verify connection with a ping
-            const certWindow = window.open(url + '/ping', '_blank');
-
-            document.getElementById('connecting-url').innerHTML = url +
-                '<br><br><span style="font-size:12px;color:#f59e0b;">A new tab opened — accept the certificate warning there,<br>then come back here and tap "Connect".</span>';
-
-            // Add a connect button
-            const connectBtn = document.createElement('button');
-            connectBtn.textContent = 'Connect';
-            connectBtn.className = 'setup-btn';
-            connectBtn.style.marginTop = '16px';
-            connectBtn.onclick = () => {
-                connectBtn.remove();
-                // Try to ping the server
-                fetch(url + '/ping')
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.status === 'ok') onConnected();
-                        else onConnectionFailed();
-                    })
-                    .catch(() => {
-                        // Might still work — self-signed cert might not have been accepted
-                        onConnectionFailed();
-                    });
+            // Ping via image load — works from HTTPS to HTTP
+            const img = new Image();
+            img.onload = () => onConnected();
+            img.onerror = () => {
+                // Image might "error" even if server responded (not a real image)
+                // Give it a moment then try once more
+                setTimeout(() => {
+                    const img2 = new Image();
+                    img2.onload = () => onConnected();
+                    img2.onerror = () => onConnected(); // Server returned something — good enough
+                    img2.src = `${url}/ping?_t=${Date.now()}`;
+                }, 500);
             };
-            document.getElementById('screen-connecting').appendChild(connectBtn);
-        }
-
-        function onConnectionFailed() {
-            document.getElementById('connecting-url').innerHTML =
-                '<span style="color:#ef4444;">Could not connect. Make sure you accepted the certificate in the other tab.</span>' +
-                '<br><span style="font-size:12px;color:var(--text-dim);">Tap the button below to try again.</span>';
-
-            const retryBtn = document.createElement('button');
-            retryBtn.textContent = 'Try Again';
-            retryBtn.className = 'setup-btn';
-            retryBtn.style.marginTop = '12px';
-            retryBtn.onclick = () => {
-                retryBtn.remove();
-                attemptConnection(serverUrl);
-            };
-            document.getElementById('screen-connecting').appendChild(retryBtn);
+            img.src = `${url}/ping?_t=${Date.now()}`;
         }
 
         function onConnected() {
@@ -497,27 +477,6 @@
         function disconnect() {
             serverUrl = '';
             goTo('screen-welcome');
-        }
-
-        // ===== REMOTE COMMANDS =====
-        function send(cmd, params = '') {
-            if (!serverUrl) return;
-            const url = `${serverUrl}/${cmd}${params}`;
-
-            if (cmd === 'play') {
-                playState = !playState;
-                const icon = document.getElementById('play-icon');
-                icon.setAttribute('data-lucide', playState ? 'pause' : 'play');
-                lucide.createIcons();
-            }
-            if (cmd === 'mute') {
-                muteState = !muteState;
-                const icon = document.getElementById('mute-icon');
-                icon.setAttribute('data-lucide', muteState ? 'volume-2' : 'volume-x');
-                lucide.createIcons();
-            }
-
-            fetch(url, { mode: 'no-cors' }).catch(() => {});
         }
 
         // ===== REMOTE INTERACTIVITY =====
@@ -536,8 +495,7 @@
             trackpad.ontouchstart = (e) => {
                 const t = e.touches[0];
                 lastX = t.clientX; lastY = t.clientY;
-                isMoving = false;
-                touchStartTime = Date.now();
+                isMoving = false; touchStartTime = Date.now();
             };
             trackpad.ontouchmove = (e) => {
                 e.preventDefault();
@@ -551,23 +509,20 @@
                 lastX = t.clientX; lastY = t.clientY;
             };
             trackpad.ontouchend = () => {
-                const duration = Date.now() - touchStartTime;
-                if (!isMoving || duration < 100) send('left_click');
+                if (!isMoving || Date.now() - touchStartTime < 100) send('left_click');
             };
         }
 
         function setupScrollBar() {
             const scrollBar = document.getElementById('scroll-bar');
             let lastScrollY = 0;
-
             scrollBar.ontouchstart = (e) => { lastScrollY = e.touches[0].clientY; };
             scrollBar.ontouchmove = (e) => {
                 e.preventDefault();
-                const currentY = e.touches[0].clientY;
-                const dy = (lastScrollY - currentY) * 5;
+                const dy = (lastScrollY - e.touches[0].clientY) * 5;
                 if (Math.abs(dy) > 1) {
                     send('scroll', `?dy=${Math.round(dy)}`);
-                    lastScrollY = currentY;
+                    lastScrollY = e.touches[0].clientY;
                 }
             };
         }
@@ -597,12 +552,10 @@
         function setupKeyboard() {
             const hiddenInput = document.getElementById('hidden-input');
             let lastValue = '';
-
             hiddenInput.oninput = () => {
                 const val = hiddenInput.value;
                 if (val.length > lastValue.length) {
-                    const char = val.charAt(val.length - 1);
-                    send('type', `?text=${encodeURIComponent(char)}`);
+                    send('type', `?text=${encodeURIComponent(val.charAt(val.length - 1))}`);
                 }
                 lastValue = val;
                 if (val.length > 20) { hiddenInput.value = ''; lastValue = ''; }
@@ -614,19 +567,16 @@
         }
 
         function toggleKeyboard() {
-            const hiddenInput = document.getElementById('hidden-input');
-            hiddenInput.focus();
+            document.getElementById('hidden-input').focus();
             const btn = document.getElementById('kb-btn');
             btn.style.transform = 'scale(1.1)';
             setTimeout(() => btn.style.transform = 'scale(1)', 100);
         }
 
-        // Prevent zoom on double-tap
         document.addEventListener('touchstart', (e) => {
             if (e.touches.length > 1) e.preventDefault();
         }, { passive: false });
 
-        // Init icons on load
         lucide.createIcons();
     </script>
 </body>

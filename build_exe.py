@@ -6,7 +6,6 @@ PyInstaller.__main__.run([
     "--windowed",
     "--add-data=remote.html;.",
     "--name=PC-Remote",
-    "--hidden-import=cryptography",
     "--clean"
 ])
 

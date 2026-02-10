@@ -1,4 +1,4 @@
-from flask import Flask, request, send_from_directory, jsonify
+from flask import Flask, request, send_from_directory, Response
 from flask_cors import CORS
 import pyautogui
 from screeninfo import get_monitors
@@ -9,9 +9,6 @@ import threading
 import tkinter as tk
 from PIL import Image, ImageTk
 import qrcode
-import ssl
-import os
-import tempfile
 
 # Windows Mouse Event Constants
 MOUSEEVENTF_XDOWN = 0x0080
@@ -27,10 +24,18 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 def index():
     return send_from_directory(".", "remote.html")
 
-# Ping endpoint so the website can verify connection
+# 1x1 transparent GIF for image-based ping/commands
+PIXEL = b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x00\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b'
+
+def pixel_response():
+    return Response(PIXEL, mimetype='image/gif', headers={
+        'Cache-Control': 'no-store',
+        'Access-Control-Allow-Origin': '*'
+    })
+
 @app.route("/ping")
 def ping():
-    return jsonify({"status": "ok", "name": socket.gethostname()})
+    return pixel_response()
 
 # CONFIG
 DOUBLE_CLICK_DELAY = 0.05
@@ -54,69 +59,69 @@ def click_area(x_ratio, y_ratio, double=False):
 @app.route("/play")
 def play_pause():
     click_area(0.5, 0.5)
-    return "OK"
+    return pixel_response()
 
 @app.route("/back")
 def back():
     click_area(0.25, 0.5, double=True)
-    return "OK"
+    return pixel_response()
 
 @app.route("/forward")
 def forward():
     click_area(0.75, 0.5, double=True)
-    return "OK"
+    return pixel_response()
 
 @app.route("/fullscreen")
 def fullscreen():
     pyautogui.press("f")
-    return "OK"
+    return pixel_response()
 
 @app.route("/esc")
 def exit_fullscreen():
     pyautogui.press("esc")
-    return "OK"
+    return pixel_response()
 
 @app.route("/arrow_left")
 def arrow_left():
     pyautogui.press("left")
-    return "OK"
+    return pixel_response()
 
 @app.route("/arrow_right")
 def arrow_right():
     pyautogui.press("right")
-    return "OK"
+    return pixel_response()
 
 @app.route("/arrow_up")
 def arrow_up():
     pyautogui.press("up")
-    return "OK"
+    return pixel_response()
 
 @app.route("/arrow_down")
 def arrow_down():
     pyautogui.press("down")
-    return "OK"
+    return pixel_response()
 
 @app.route("/mute")
 def mute():
     pyautogui.press("m")
-    return "OK"
+    return pixel_response()
 
 @app.route("/mouse_move")
 def mouse_move():
     dx = float(request.args.get('dx', 0))
     dy = float(request.args.get('dy', 0))
     pyautogui.moveRel(dx, dy, _pause=False)
-    return "OK"
+    return pixel_response()
 
 @app.route("/left_click")
 def left_click():
     pyautogui.click(button='left')
-    return "OK"
+    return pixel_response()
 
 @app.route("/right_click")
 def right_click():
     pyautogui.click(button='right')
-    return "OK"
+    return pixel_response()
 
 @app.route("/mouse_down")
 def mouse_down():
@@ -127,7 +132,7 @@ def mouse_down():
         ctypes.windll.user32.mouse_event(MOUSEEVENTF_XDOWN, 0, 0, XBUTTON2, 0)
     else:
         pyautogui.mouseDown(button=button)
-    return "OK"
+    return pixel_response()
 
 @app.route("/mouse_up")
 def mouse_up():
@@ -138,7 +143,7 @@ def mouse_up():
         ctypes.windll.user32.mouse_event(MOUSEEVENTF_XUP, 0, 0, XBUTTON2, 0)
     else:
         pyautogui.mouseUp(button=button)
-    return "OK"
+    return pixel_response()
 
 @app.route("/mouse_click")
 def mouse_click():
@@ -148,91 +153,28 @@ def mouse_click():
 def scroll():
     dy = int(float(request.args.get('dy', 0)))
     pyautogui.scroll(dy)
-    return "OK"
+    return pixel_response()
 
 @app.route("/double_click")
 def double_click():
     click_area(0.5, 0.5, double=True)
-    return "OK"
+    return pixel_response()
 
 @app.route("/type")
 def type_text():
     text = request.args.get('text', '')
     if text:
         pyautogui.write(text)
-    return "OK"
+    return pixel_response()
 
 @app.route("/press_key")
 def press_key():
     key = request.args.get('key', '')
     if key:
         pyautogui.press(key)
-    return "OK"
-
-def generate_ssl_cert():
-    """Generate a self-signed SSL certificate for HTTPS."""
-    try:
-        from cryptography import x509
-        from cryptography.x509.oid import NameOID
-        from cryptography.hazmat.primitives import hashes, serialization
-        from cryptography.hazmat.primitives.asymmetric import rsa
-        import datetime
-
-        # Generate key
-        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-
-        # Get local IP
-        local_ip = get_local_ip()
-
-        # Build certificate
-        subject = issuer = x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME, "PC Remote"),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "PC Remote"),
-        ])
-
-        # Add the local IP as a Subject Alternative Name so browsers accept it
-        san = x509.SubjectAlternativeName([
-            x509.DNSName("localhost"),
-            x509.IPAddress(ipaddress.IPv4Address(local_ip)),
-        ])
-
-        cert = (
-            x509.CertificateBuilder()
-            .subject_name(subject)
-            .issuer_name(issuer)
-            .public_key(key.public_key())
-            .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.utcnow())
-            .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=365))
-            .add_extension(san, critical=False)
-            .sign(key, hashes.SHA256())
-        )
-
-        # Write to temp files
-        cert_dir = os.path.join(tempfile.gettempdir(), "pc_remote_ssl")
-        os.makedirs(cert_dir, exist_ok=True)
-        cert_path = os.path.join(cert_dir, "cert.pem")
-        key_path = os.path.join(cert_dir, "key.pem")
-
-        with open(cert_path, "wb") as f:
-            f.write(cert.public_bytes(serialization.Encoding.PEM))
-        with open(key_path, "wb") as f:
-            f.write(key.private_bytes(
-                serialization.Encoding.PEM,
-                serialization.PrivateFormat.TraditionalOpenSSL,
-                serialization.NoEncryption()
-            ))
-
-        return cert_path, key_path
-
-    except ImportError:
-        print("⚠️  'cryptography' package not found. Install with: pip install cryptography")
-        print("    Falling back to HTTP mode.")
-        return None, None
-
+    return pixel_response()
 
 def get_local_ip():
-    """Get the real local IP address."""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
@@ -243,15 +185,12 @@ def get_local_ip():
         return socket.gethostbyname(socket.gethostname())
 
 
-import ipaddress
-
-def show_popup(url, is_https=False):
+def show_popup(url):
     root = tk.Tk()
     root.title("PC Remote")
-    root.geometry("350x500")
+    root.geometry("350x450")
     root.configure(bg="#121212")
 
-    # Generate QR Code
     qr = qrcode.QRCode(version=1, box_size=10, border=4)
     qr.add_data(url)
     qr.make(fit=True)
@@ -274,10 +213,6 @@ def show_popup(url, is_https=False):
     entry_url.config(state="readonly")
     entry_url.pack(pady=5)
 
-    if is_https:
-        lbl_ssl = tk.Label(root, text="🔒 Running with HTTPS", font=("Arial", 9), fg="#22c55e", bg="#121212")
-        lbl_ssl.pack(pady=2)
-
     btn_ok = tk.Button(root, text="Close Window", command=root.destroy, bg="#3b82f6", fg="white", font=("Arial", 10, "bold"), relief="flat", padx=20, pady=5)
     btn_ok.pack(pady=15)
 
@@ -287,38 +222,20 @@ def show_popup(url, is_https=False):
 if __name__ == "__main__":
     local_ip = get_local_ip()
     port = 5000
-
-    # Try to generate SSL cert
-    cert_path, key_path = generate_ssl_cert()
-    use_ssl = cert_path is not None
-
-    if use_ssl:
-        url = f"https://{local_ip}:{port}"
-        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        ssl_context.load_cert_chain(cert_path, key_path)
-    else:
-        url = f"http://{local_ip}:{port}"
-        ssl_context = None
+    url = f"http://{local_ip}:{port}"
 
     print("\n" + "="*50)
     print("🚀 PC REMOTE SERVER IS STARTING!")
     print(f"📱 Connect your phone to: {url}")
-    if use_ssl:
-        print("🔒 HTTPS enabled (self-signed certificate)")
     print("="*50 + "\n")
 
-    # Start server in background thread
-    def run_server():
-        if ssl_context:
-            app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False, ssl_context=ssl_context)
-        else:
-            app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
-
-    server_thread = threading.Thread(target=run_server)
+    server_thread = threading.Thread(
+        target=lambda: app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+    )
     server_thread.daemon = True
     server_thread.start()
 
-    show_popup(url, is_https=use_ssl)
+    show_popup(url)
 
     while True:
         time.sleep(1)
